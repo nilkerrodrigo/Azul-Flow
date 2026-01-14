@@ -1,34 +1,34 @@
 import React, { useState } from 'react';
-import { User } from '../types';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { Sparkles } from 'lucide-react';
 
 interface LoginProps {
-  onLogin: (user: User) => void;
+  onAuthenticate: (u: string, p: string, remember: boolean) => Promise<{ success: boolean; error?: string }>;
 }
 
-const Login: React.FC<LoginProps> = ({ onLogin }) => {
+const Login: React.FC<LoginProps> = ({ onAuthenticate }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
-    // Simulating API latency
-    setTimeout(() => {
-      // Hardcoded credentials for demo
-      if (username === 'teste' && password === '123456') {
-        onLogin({ username, isAuthenticated: true });
-      } else {
-        setError('Credenciais inválidas. Tente usuario: "teste" e senha: "123456"');
+    try {
+      const result = await onAuthenticate(username, password, rememberMe);
+      if (!result.success) {
+        setError(result.error || 'Usuário ou senha incorretos.');
       }
+    } catch (err) {
+      setError('Erro ao tentar fazer login.');
+    } finally {
       setLoading(false);
-    }, 800);
+    }
   };
 
   return (
@@ -53,21 +53,40 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             value={username}
             onChange={(e) => setUsername(e.target.value)}
           />
-          <Input 
-            label="Senha" 
-            type="password" 
-            placeholder="••••••••" 
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            error={error}
-          />
+          
+          <div className="space-y-4">
+            <Input 
+                label="Senha" 
+                type="password" 
+                placeholder="••••••••" 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                error={error}
+            />
+            
+            <div className="flex items-center">
+                <label className="flex items-center gap-2 cursor-pointer group">
+                    <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${rememberMe ? 'bg-cyan-600 border-cyan-600' : 'border-slate-600 bg-slate-800 group-hover:border-slate-500'}`}>
+                         {rememberMe && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                    </div>
+                    <input 
+                        type="checkbox" 
+                        checked={rememberMe}
+                        onChange={(e) => setRememberMe(e.target.checked)}
+                        className="hidden"
+                    />
+                    <span className="text-sm text-slate-400 group-hover:text-slate-300 select-none">Lembrar de mim</span>
+                </label>
+            </div>
+          </div>
 
           <Button type="submit" className="w-full h-11 text-lg" isLoading={loading}>
             Entrar no Dashboard
           </Button>
 
-          <div className="text-center mt-4 text-xs text-slate-500">
-             Credenciais de teste: <strong>teste</strong> / <strong>123456</strong>
+          <div className="text-center mt-4 text-xs text-slate-500 space-y-1">
+             <p>Admin: <strong>admin</strong> / <strong>admin</strong></p>
+             <p>User: <strong>user</strong> / <strong>user</strong></p>
           </div>
         </form>
       </div>

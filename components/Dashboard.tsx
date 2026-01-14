@@ -31,7 +31,11 @@ import {
   Palette,
   Wand2,
   BrainCircuit,
-  LogOut
+  LogOut,
+  ShieldAlert,
+  User as UserIcon,
+  Shield,
+  Trash2
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -39,6 +43,8 @@ interface DashboardProps {
   setAppState: React.Dispatch<React.SetStateAction<AppState>>;
   onOpenSettings: () => void;
   onLogout: () => void;
+  onOpenAdmin: () => void;
+  onDeleteProject: (id: string) => void;
 }
 
 const THEMES = [
@@ -86,7 +92,7 @@ const THEMES = [
   }
 ];
 
-const Dashboard: React.FC<DashboardProps> = ({ appState, setAppState, onOpenSettings, onLogout }) => {
+const Dashboard: React.FC<DashboardProps> = ({ appState, setAppState, onOpenSettings, onLogout, onOpenAdmin, onDeleteProject }) => {
   const [prompt, setPrompt] = useState('');
   const [attachment, setAttachment] = useState<Attachment | null>(null);
   const [isFullScreen, setIsFullScreen] = useState(false);
@@ -185,6 +191,13 @@ const Dashboard: React.FC<DashboardProps> = ({ appState, setAppState, onOpenSett
   const cancelEditingProject = (e: React.MouseEvent) => {
       e.stopPropagation();
       setEditingProjectId(null);
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent, id: string) => {
+      e.stopPropagation();
+      if (window.confirm("Tem certeza que deseja excluir este projeto?")) {
+          onDeleteProject(id);
+      }
   };
 
   // --- Undo / Redo ---
@@ -323,7 +336,8 @@ const Dashboard: React.FC<DashboardProps> = ({ appState, setAppState, onOpenSett
                 id: newId,
                 name: textToUse.slice(0, 30) || "Nova Landing Page",
                 html: generatedHtml,
-                lastModified: now
+                lastModified: now,
+                userId: prev.user?.id
             };
             updatedProjects = [newProject, ...updatedProjects];
         } else {
@@ -459,22 +473,37 @@ const Dashboard: React.FC<DashboardProps> = ({ appState, setAppState, onOpenSett
       {!isFullScreen && (
         <div className="w-[400px] flex flex-col border-r border-slate-800 bg-slate-900/80 backdrop-blur-md transition-all duration-300">
             {/* Header */}
-            <div className="p-4 border-b border-slate-800 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
-                        <Code2 className="text-white w-5 h-5" />
+            <div className="p-4 border-b border-slate-800 flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
+                            <Code2 className="text-white w-5 h-5" />
+                        </div>
+                        <span className="font-bold text-lg text-white">Lumina<span className="text-cyan-400">Flow</span></span>
                     </div>
-                    <span className="font-bold text-lg text-white">Lumina<span className="text-cyan-400">Flow</span></span>
+                    
+                    <div className="flex items-center gap-1 bg-slate-800 rounded-full pl-2 pr-1 py-1 border border-slate-700">
+                        <div className="flex items-center gap-2 mr-2">
+                            {appState.user?.role === 'admin' ? <Shield className="w-3 h-3 text-purple-400" /> : <UserIcon className="w-3 h-3 text-slate-400" />}
+                            <span className="text-xs text-slate-300 max-w-[80px] truncate">{appState.user?.username}</span>
+                        </div>
+                        <button onClick={onLogout} title="Sair" className="p-1 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded-full transition-colors">
+                            <LogOut className="w-3 h-3" />
+                        </button>
+                    </div>
                 </div>
-                <div className="flex gap-2">
-                    <button onClick={handleNewProject} title="Novo Projeto" className="p-2 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 rounded-lg transition-colors">
-                        <Plus className="w-5 h-5" />
+
+                <div className="flex gap-2 w-full">
+                     {appState.user?.role === 'admin' && (
+                        <button onClick={onOpenAdmin} className="flex-1 flex items-center justify-center gap-2 p-2 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 text-xs font-medium rounded-lg transition-colors border border-purple-500/20">
+                            <ShieldAlert className="w-4 h-4" /> Painel Admin
+                        </button>
+                    )}
+                    <button onClick={handleNewProject} className="flex-1 flex items-center justify-center gap-2 p-2 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 text-xs font-medium rounded-lg transition-colors border border-cyan-500/20">
+                        <Plus className="w-4 h-4" /> Novo Projeto
                     </button>
-                    <button onClick={onOpenSettings} title="Configurações" className="p-2 text-slate-400 hover:text-cyan-400 transition-colors">
-                        <Settings className="w-5 h-5" />
-                    </button>
-                    <button onClick={onLogout} title="Sair da Conta" className="p-2 text-slate-400 hover:text-red-400 transition-colors">
-                        <LogOut className="w-5 h-5" />
+                    <button onClick={onOpenSettings} title="Configurações" className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded-lg transition-colors border border-slate-700">
+                        <Settings className="w-4 h-4" />
                     </button>
                 </div>
             </div>
@@ -536,13 +565,22 @@ const Dashboard: React.FC<DashboardProps> = ({ appState, setAppState, onOpenSett
                                             <h3 className={`font-medium truncate flex-1 ${appState.currentProjectId === project.id ? 'text-cyan-400' : 'text-slate-200'}`}>
                                                 {project.name}
                                             </h3>
-                                            <button 
-                                                onClick={(e) => startEditingProject(e, project)}
-                                                className="opacity-0 group-hover:opacity-100 p-1 text-slate-500 hover:text-white transition-all"
-                                                title="Renomear"
-                                            >
-                                                <Edit2 className="w-3.5 h-3.5" />
-                                            </button>
+                                            <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                 <button 
+                                                    onClick={(e) => startEditingProject(e, project)}
+                                                    className="p-1 text-slate-500 hover:text-white transition-all mr-1"
+                                                    title="Renomear"
+                                                >
+                                                    <Edit2 className="w-3.5 h-3.5" />
+                                                </button>
+                                                <button 
+                                                    onClick={(e) => handleDeleteClick(e, project.id)}
+                                                    className="p-1 text-slate-500 hover:text-red-400 transition-all"
+                                                    title="Excluir"
+                                                >
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
                                         </>
                                     )}
                                 </div>

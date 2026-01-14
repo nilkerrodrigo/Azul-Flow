@@ -1,5 +1,9 @@
 export interface User {
+  id: string;
   username: string;
+  password?: string; // Nota: Em produção real, senhas devem ser hash
+  role: 'admin' | 'user';
+  active: boolean;
   isAuthenticated: boolean;
 }
 
@@ -20,9 +24,10 @@ export interface Project {
   name: string;
   html: string;
   lastModified: number;
+  userId?: string; // Opcional para manter compatibilidade com projetos antigos
 }
 
-export type ViewState = 'dashboard' | 'settings' | 'login';
+export type ViewState = 'dashboard' | 'settings' | 'login' | 'admin';
 
 export interface AuditSuggestion {
   category: 'SEO' | 'Performance' | 'Acessibilidade' | 'Design';
@@ -41,6 +46,9 @@ export interface AuditResult {
 
 export interface AppState {
   apiKey: string;
+  supabaseUrl: string;
+  supabaseKey: string;
+  
   view: ViewState;
   user: User | null;
   
