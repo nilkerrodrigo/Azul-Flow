@@ -5,27 +5,24 @@ import { Save, ArrowLeft, Key, Database, Lock } from 'lucide-react';
 
 interface SettingsProps {
   apiKey: string;
-  supabaseUrl: string;
-  supabaseKey: string;
+  firebaseConfigJson: string;
   userRole?: string;
-  onSave: (key: string, sbUrl: string, sbKey: string) => void;
+  onSave: (key: string, fbConfig: string) => void;
   onBack: () => void;
 }
 
-const Settings: React.FC<SettingsProps> = ({ apiKey, supabaseUrl, supabaseKey, userRole, onSave, onBack }) => {
+const Settings: React.FC<SettingsProps> = ({ apiKey, firebaseConfigJson, userRole, onSave, onBack }) => {
   const [key, setKey] = useState(apiKey);
-  const [sbUrl, setSbUrl] = useState(supabaseUrl);
-  const [sbKey, setSbKey] = useState(supabaseKey);
+  const [fbConfig, setFbConfig] = useState(firebaseConfigJson);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     setKey(apiKey);
-    setSbUrl(supabaseUrl);
-    setSbKey(supabaseKey);
-  }, [apiKey, supabaseUrl, supabaseKey]);
+    setFbConfig(firebaseConfigJson);
+  }, [apiKey, firebaseConfigJson]);
 
   const handleSave = () => {
-    onSave(key, sbUrl, sbKey);
+    onSave(key, fbConfig);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -45,7 +42,7 @@ const Settings: React.FC<SettingsProps> = ({ apiKey, supabaseUrl, supabaseKey, u
         {/* Gemini Config */}
         <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-6 shadow-xl mb-6">
           <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 bg-slate-800 rounded-lg text-cyan-400">
+            <div className="p-2 bg-slate-800 rounded-lg text-blue-400">
               <Key className="w-5 h-5" />
             </div>
             <h3 className="text-xl font-semibold text-white">Inteligência Artificial (Gemini)</h3>
@@ -53,7 +50,7 @@ const Settings: React.FC<SettingsProps> = ({ apiKey, supabaseUrl, supabaseKey, u
 
           <div className="space-y-4">
             <p className="text-sm text-slate-400">
-              Define qual chave de API será usada para gerar as páginas. O administrador definiu uma chave padrão, mas você pode usar a sua pessoal se desejar.
+              Define qual chave de API será usada para gerar as páginas.
             </p>
             <Input
               label="Chave da API (Gemini)"
@@ -65,40 +62,37 @@ const Settings: React.FC<SettingsProps> = ({ apiKey, supabaseUrl, supabaseKey, u
           </div>
         </div>
 
-        {/* Supabase Config - ONLY FOR ADMINS */}
+        {/* Firebase Config - ONLY FOR ADMINS */}
         {isAdmin ? (
-            <div className="bg-slate-900/50 border border-purple-900/30 rounded-xl p-6 shadow-xl relative overflow-hidden">
+            <div className="bg-slate-900/50 border border-orange-900/30 rounded-xl p-6 shadow-xl relative overflow-hidden">
               <div className="absolute top-0 right-0 p-2 opacity-10">
-                  <Lock className="w-24 h-24 text-purple-500" />
+                  <Database className="w-24 h-24 text-orange-500" />
               </div>
               
               <div className="flex items-center gap-3 mb-6 relative z-10">
-                <div className="p-2 bg-purple-500/10 rounded-lg text-purple-400 border border-purple-500/20">
+                <div className="p-2 bg-orange-500/10 rounded-lg text-orange-400 border border-orange-500/20">
                   <Database className="w-5 h-5" />
                 </div>
                 <div>
-                    <h3 className="text-xl font-semibold text-white">Banco de Dados (Sistema)</h3>
-                    <span className="text-[10px] uppercase tracking-wider font-bold text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded border border-purple-500/20">Apenas Admin</span>
+                    <h3 className="text-xl font-semibold text-white">Banco de Dados (Firebase)</h3>
+                    <span className="text-[10px] uppercase tracking-wider font-bold text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded border border-orange-500/20">Apenas Admin</span>
                 </div>
               </div>
 
               <div className="space-y-4 relative z-10">
                 <p className="text-sm text-slate-400">
-                  Conecte para salvar usuários e projetos na nuvem. Estas configurações são globais para o sistema.
+                  Cole o objeto de configuração JSON do seu projeto Firebase (disponível no console do Firebase &gt; Configurações do Projeto).
                 </p>
-                <Input
-                  label="Project URL"
-                  placeholder="Ex: https://xyz.supabase.co"
-                  value={sbUrl}
-                  onChange={(e) => setSbUrl(e.target.value)}
-                />
-                 <Input
-                  label="API Key (anon/public)"
-                  type="password"
-                  placeholder="Ex: eyJhbGciOiJIUzI1NiIsInR5cCI..."
-                  value={sbKey}
-                  onChange={(e) => setSbKey(e.target.value)}
-                />
+                
+                <div>
+                    <label className="block text-sm font-medium text-slate-400 mb-1.5">Configuração JSON</label>
+                    <textarea
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-slate-100 placeholder-slate-600 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all font-mono text-xs h-32 resize-y"
+                        placeholder='{"apiKey": "...", "authDomain": "...", "projectId": "..."}'
+                        value={fbConfig}
+                        onChange={(e) => setFbConfig(e.target.value)}
+                    />
+                </div>
               </div>
             </div>
         ) : (

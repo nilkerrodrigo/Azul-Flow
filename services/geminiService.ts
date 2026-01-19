@@ -1,4 +1,4 @@
-import { GoogleGenAI, SchemaType, Type } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import { Attachment, AuditResult } from "../types";
 
 const SYSTEM_INSTRUCTION = `

@@ -50,10 +50,17 @@ interface DashboardProps {
 const THEMES = [
   { 
     id: 'original', 
-    name: 'Neon Blue (Original)',
-    description: 'Visual padrão tecnológico escuro com acentos em ciano.', 
+    name: 'Azul Flow (Original)',
+    description: 'Visual padrão tecnológico escuro com acentos em Azul Royal e Indigo.', 
+    colors: 'from-blue-600 to-indigo-700',
+    prompt: "Reescreva o estilo CSS/Tailwind para o tema 'Azul Flow': Fundo escuro (slate-950), acentos em Azul Royal (blue-600) e Indigo, visual tecnológico limpo e moderno." 
+  },
+  { 
+    id: 'neon_cyan', 
+    name: 'Neon Cyan', 
+    description: 'O clássico tema ciano brilhante.',
     colors: 'from-cyan-500 to-blue-600',
-    prompt: "Reescreva o estilo CSS/Tailwind para voltar ao tema original: Fundo escuro (slate-950), acentos em Ciano Neon e Azul Elétrico, visual tecnológico limpo." 
+    prompt: "Reescreva o estilo CSS/Tailwind para um tema 'Neon Cyan': Fundo escuro, acentos em Ciano Neon e Azul Elétrico." 
   },
   { 
     id: 'matrix', 
@@ -68,13 +75,6 @@ const THEMES = [
     description: 'Alto contraste, amarelo vibrante e roxo profundo.',
     colors: 'from-yellow-400 to-purple-600',
     prompt: "Reescreva APENAS o estilo CSS/Tailwind para um tema 'Cyberpunk 2077': Fundo roxo escuro quase preto, acentos vibrantes em Amarelo Ouro e Rosa Choque. Use fontes sans-serif bold e bordas angulares. Mantenha o conteúdo igual." 
-  },
-  { 
-    id: 'vaporwave', 
-    name: 'Sunset Vapor', 
-    description: 'Degradês retrô anos 80, rosa, roxo e laranja suave.',
-    colors: 'from-pink-500 to-orange-400',
-    prompt: "Reescreva APENAS o estilo CSS/Tailwind para um tema 'Vaporwave/Sunset': Degradês de Roxo para Laranja, fundo índigo escuro, sombras suaves (glow), cantos arredondados. Estética retro-futurista 80s." 
   },
   { 
     id: 'minimal', 
@@ -412,19 +412,19 @@ const Dashboard: React.FC<DashboardProps> = ({ appState, setAppState, onOpenSett
                 </button>
                 
                 <div className="flex items-center gap-3 mb-4">
-                    <div className="p-3 bg-cyan-900/30 rounded-lg">
-                        <ImageIcon className="w-6 h-6 text-cyan-400" />
+                    <div className="p-3 bg-blue-900/30 rounded-lg">
+                        <ImageIcon className="w-6 h-6 text-blue-400" />
                     </div>
                     <h3 className="text-xl font-bold text-white">Como usar suas fotos?</h3>
                 </div>
 
                 <div className="space-y-4 text-slate-300 text-sm">
-                    <p>O LuminaFlow gera código <strong>HTML estático</strong>. Por segurança, ele não pode acessar os arquivos do seu computador diretamente após a página ser baixada.</p>
+                    <p>O Azul Flow gera código <strong>HTML estático</strong>. Por segurança, ele não pode acessar os arquivos do seu computador diretamente após a página ser baixada.</p>
                     
                     <div className="p-3 bg-slate-800 rounded-lg border border-slate-700">
                         <strong className="text-white block mb-1">Opção 1: Usar Links (Recomendado)</strong>
                         <p className="text-slate-400">Hospede sua imagem (Imgur, Google Photos, seu site) e peça:</p>
-                        <code className="block mt-2 bg-black/30 p-2 rounded text-cyan-300 text-xs">
+                        <code className="block mt-2 bg-black/30 p-2 rounded text-blue-300 text-xs">
                             "Coloque a imagem do link https://meusite.com/foto.jpg no banner principal"
                         </code>
                     </div>
@@ -459,8 +459,8 @@ const Dashboard: React.FC<DashboardProps> = ({ appState, setAppState, onOpenSett
                     <p className="text-slate-400 mb-6 text-sm">Sua landing page está online em uma URL temporária simulada.</p>
                     
                     <div className="bg-slate-950 border border-slate-800 rounded-lg p-3 w-full flex items-center justify-between mb-4">
-                        <span className="text-cyan-400 text-sm truncate">lumina.flow/p/{appState.currentProjectId?.slice(0,8) || 'demo'}</span>
-                        <Button variant="ghost" className="h-6 text-xs" onClick={() => navigator.clipboard.writeText(`lumina.flow/p/${appState.currentProjectId}`)}>Copiar</Button>
+                        <span className="text-blue-400 text-sm truncate">azul.flow/p/{appState.currentProjectId?.slice(0,8) || 'demo'}</span>
+                        <Button variant="ghost" className="h-6 text-xs" onClick={() => navigator.clipboard.writeText(`azul.flow/p/${appState.currentProjectId}`)}>Copiar</Button>
                     </div>
 
                     <Button className="w-full" onClick={() => setShowPublishModal(false)}>Concluir</Button>
@@ -476,10 +476,10 @@ const Dashboard: React.FC<DashboardProps> = ({ appState, setAppState, onOpenSett
             <div className="p-4 border-b border-slate-800 flex flex-col gap-3">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
+                        <div className="w-8 h-8 rounded bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
                             <Code2 className="text-white w-5 h-5" />
                         </div>
-                        <span className="font-bold text-lg text-white">Lumina<span className="text-cyan-400">Flow</span></span>
+                        <span className="font-bold text-lg text-white">Azul <span className="text-blue-400">Flow</span></span>
                     </div>
                     
                     <div className="flex items-center gap-1 bg-slate-800 rounded-full pl-2 pr-1 py-1 border border-slate-700">
@@ -499,7 +499,7 @@ const Dashboard: React.FC<DashboardProps> = ({ appState, setAppState, onOpenSett
                             <ShieldAlert className="w-4 h-4" /> Painel Admin
                         </button>
                     )}
-                    <button onClick={handleNewProject} className="flex-1 flex items-center justify-center gap-2 p-2 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 text-xs font-medium rounded-lg transition-colors border border-cyan-500/20">
+                    <button onClick={handleNewProject} className="flex-1 flex items-center justify-center gap-2 p-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 text-xs font-medium rounded-lg transition-colors border border-blue-500/20">
                         <Plus className="w-4 h-4" /> Novo Projeto
                     </button>
                     <button onClick={onOpenSettings} title="Configurações" className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded-lg transition-colors border border-slate-700">
@@ -512,13 +512,13 @@ const Dashboard: React.FC<DashboardProps> = ({ appState, setAppState, onOpenSett
             <div className="flex border-b border-slate-800">
                 <button 
                     onClick={() => setSidebarTab('chat')}
-                    className={`flex-1 py-3 text-sm font-medium flex items-center justify-center gap-2 border-b-2 transition-colors ${sidebarTab === 'chat' ? 'border-cyan-500 text-white' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
+                    className={`flex-1 py-3 text-sm font-medium flex items-center justify-center gap-2 border-b-2 transition-colors ${sidebarTab === 'chat' ? 'border-blue-500 text-white' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
                 >
                     <MessageSquare className="w-4 h-4" /> Editor
                 </button>
                 <button 
                     onClick={() => setSidebarTab('projects')}
-                    className={`flex-1 py-3 text-sm font-medium flex items-center justify-center gap-2 border-b-2 transition-colors ${sidebarTab === 'projects' ? 'border-cyan-500 text-white' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
+                    className={`flex-1 py-3 text-sm font-medium flex items-center justify-center gap-2 border-b-2 transition-colors ${sidebarTab === 'projects' ? 'border-blue-500 text-white' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
                 >
                     <History className="w-4 h-4" /> Projetos ({appState.projects.length})
                 </button>
@@ -540,7 +540,7 @@ const Dashboard: React.FC<DashboardProps> = ({ appState, setAppState, onOpenSett
                                 onClick={() => handleLoadProject(project)}
                                 className={`p-4 rounded-xl border cursor-pointer transition-all hover:shadow-lg group ${
                                     appState.currentProjectId === project.id 
-                                    ? 'bg-cyan-900/20 border-cyan-500/50 shadow-[0_0_15px_rgba(8,145,178,0.1)]' 
+                                    ? 'bg-blue-900/20 border-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.1)]' 
                                     : 'bg-slate-800/50 border-slate-700/50 hover:bg-slate-800 hover:border-slate-600'
                                 }`}
                             >
@@ -551,7 +551,7 @@ const Dashboard: React.FC<DashboardProps> = ({ appState, setAppState, onOpenSett
                                                 autoFocus
                                                 value={editingName}
                                                 onChange={(e) => setEditingName(e.target.value)}
-                                                className="bg-slate-900 border border-cyan-500 rounded px-2 py-1 text-sm text-white w-full focus:outline-none"
+                                                className="bg-slate-900 border border-blue-500 rounded px-2 py-1 text-sm text-white w-full focus:outline-none"
                                                 onKeyDown={(e) => {
                                                     if (e.key === 'Enter') saveProjectName(e as any);
                                                     if (e.key === 'Escape') cancelEditingProject(e as any);
@@ -562,7 +562,7 @@ const Dashboard: React.FC<DashboardProps> = ({ appState, setAppState, onOpenSett
                                         </div>
                                     ) : (
                                         <>
-                                            <h3 className={`font-medium truncate flex-1 ${appState.currentProjectId === project.id ? 'text-cyan-400' : 'text-slate-200'}`}>
+                                            <h3 className={`font-medium truncate flex-1 ${appState.currentProjectId === project.id ? 'text-blue-400' : 'text-slate-200'}`}>
                                                 {project.name}
                                             </h3>
                                             <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -602,7 +602,7 @@ const Dashboard: React.FC<DashboardProps> = ({ appState, setAppState, onOpenSett
                             <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                                 <div className={`max-w-[90%] p-3 rounded-xl text-sm leading-relaxed ${
                                     msg.role === 'user' 
-                                    ? 'bg-cyan-600/20 border border-cyan-500/30 text-cyan-100 rounded-br-none' 
+                                    ? 'bg-blue-600/20 border border-blue-500/30 text-blue-100 rounded-br-none' 
                                     : 'bg-slate-800 border border-slate-700 text-slate-300 rounded-bl-none shadow-sm'
                                 }`}>
                                     {msg.text}
@@ -612,7 +612,7 @@ const Dashboard: React.FC<DashboardProps> = ({ appState, setAppState, onOpenSett
                         {appState.isGenerating && (
                             <div className="flex justify-start">
                                 <div className="bg-slate-800 border border-slate-700 p-3 rounded-lg rounded-bl-none flex items-center gap-2">
-                                    <Loader2 className="w-4 h-4 text-cyan-500 animate-spin" />
+                                    <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
                                     <span className="text-xs text-slate-400">Gemini 3 Pro trabalhando...</span>
                                 </div>
                             </div>
@@ -636,7 +636,7 @@ const Dashboard: React.FC<DashboardProps> = ({ appState, setAppState, onOpenSett
 
                 <div className="relative">
                     <textarea
-                        className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-4 pr-12 py-3 text-slate-200 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 resize-none h-24 text-sm scrollbar-thin transition-all"
+                        className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-4 pr-12 py-3 text-slate-200 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 resize-none h-24 text-sm scrollbar-thin transition-all"
                         placeholder="Descreva a página ou alteração..."
                         value={prompt}
                         onChange={(e) => setPrompt(e.target.value)}
@@ -666,7 +666,7 @@ const Dashboard: React.FC<DashboardProps> = ({ appState, setAppState, onOpenSett
                         <button 
                             onClick={() => fileInputRef.current?.click()}
                             disabled={appState.isGenerating}
-                            className={`p-2 rounded-lg transition-all ${attachment ? 'text-cyan-400 bg-cyan-900/30' : 'text-slate-400 hover:text-cyan-400 hover:bg-slate-800'}`}
+                            className={`p-2 rounded-lg transition-all ${attachment ? 'text-blue-400 bg-blue-900/30' : 'text-slate-400 hover:text-blue-400 hover:bg-slate-800'}`}
                             title="Anexar referência"
                         >
                             <Paperclip className="w-4 h-4" />
@@ -674,7 +674,7 @@ const Dashboard: React.FC<DashboardProps> = ({ appState, setAppState, onOpenSett
                         <button 
                             onClick={() => handleGenerate()}
                             disabled={(!prompt.trim() && !attachment) || appState.isGenerating}
-                            className="p-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-cyan-900/20"
+                            className="p-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-blue-900/20"
                         >
                             <Send className="w-4 h-4" />
                         </button>
@@ -691,17 +691,17 @@ const Dashboard: React.FC<DashboardProps> = ({ appState, setAppState, onOpenSett
             <div className="flex items-center gap-4">
                 {isFullScreen && (
                     <div className="flex items-center gap-2">
-                         <div className="w-6 h-6 rounded bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
+                         <div className="w-6 h-6 rounded bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
                             <Code2 className="text-white w-3 h-3" />
                         </div>
-                        <span className="font-bold text-white text-sm">LuminaFlow</span>
+                        <span className="font-bold text-white text-sm">AzulFlow</span>
                     </div>
                 )}
                 <div className="flex items-center gap-2">
                     <h2 className="text-slate-300 text-sm font-medium">
                         {appState.projects.find(p => p.id === appState.currentProjectId)?.name || "Nova Página"}
                     </h2>
-                    {isVisualEditing && <span className="text-[10px] bg-cyan-500/20 text-cyan-400 px-1.5 py-0.5 rounded border border-cyan-500/30">Editando Texto</span>}
+                    {isVisualEditing && <span className="text-[10px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded border border-blue-500/30">Editando Texto</span>}
                 </div>
             </div>
             
@@ -724,7 +724,7 @@ const Dashboard: React.FC<DashboardProps> = ({ appState, setAppState, onOpenSett
                 <div className="relative">
                     <Button 
                         variant="ghost" 
-                        className={`h-8 text-xs px-2 ${showThemeMenu ? 'text-cyan-400 bg-cyan-500/10' : 'text-slate-400 hover:text-cyan-400'}`}
+                        className={`h-8 text-xs px-2 ${showThemeMenu ? 'text-blue-400 bg-blue-500/10' : 'text-slate-400 hover:text-blue-400'}`}
                         onClick={() => setShowThemeMenu(!showThemeMenu)}
                         title="Magic Restyler (Temas)"
                         disabled={!appState.generatedCode || appState.isGenerating}

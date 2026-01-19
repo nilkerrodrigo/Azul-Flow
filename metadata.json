@@ -1,5 +1,5 @@
 {
-  "name": "LuminaFlow Builder",
-  "description": "Um gerador de Landing Pages futurista utilizando o poder do Gemini 3 Pro. Crie, edite e exporte páginas web completas com comandos de texto simples.",
+  "name": "Azul Flow",
+  "description": "Gerador de Landing Pages futurista Azul Flow com Gemini 3 Pro e Firebase.",
   "requestFramePermissions": []
 }

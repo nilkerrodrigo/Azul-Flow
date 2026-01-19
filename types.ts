@@ -45,9 +45,10 @@ export interface AuditResult {
 }
 
 export interface AppState {
-  apiKey: string;
-  supabaseUrl: string;
-  supabaseKey: string;
+  apiKey: string; // Gemini API Key
+  
+  // Firebase Config (armazenado como JSON string para flexibilidade)
+  firebaseConfigJson: string; 
   
   view: ViewState;
   user: User | null;

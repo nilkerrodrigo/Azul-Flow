@@ -16,10 +16,10 @@ export const Button: React.FC<ButtonProps> = ({
   const baseStyles = "px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed";
   
   const variants = {
-    primary: "bg-cyan-600 hover:bg-cyan-500 text-white shadow-[0_0_15px_rgba(8,145,178,0.4)] hover:shadow-[0_0_20px_rgba(34,211,238,0.6)] border border-cyan-500/30",
-    secondary: "bg-slate-800 hover:bg-slate-700 text-cyan-100 border border-slate-700",
+    primary: "bg-blue-600 hover:bg-blue-500 text-white shadow-[0_0_15px_rgba(59,130,246,0.4)] hover:shadow-[0_0_20px_rgba(96,165,250,0.6)] border border-blue-500/30",
+    secondary: "bg-slate-800 hover:bg-slate-700 text-blue-100 border border-slate-700",
     danger: "bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/50",
-    ghost: "bg-transparent hover:bg-slate-800 text-slate-400 hover:text-cyan-400"
+    ghost: "bg-transparent hover:bg-slate-800 text-slate-400 hover:text-blue-400"
   };
 
   return (

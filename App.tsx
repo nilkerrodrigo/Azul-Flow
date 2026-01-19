@@ -5,7 +5,7 @@ import Settings from './components/Settings';
 import AdminPanel from './components/AdminPanel';
 import { AppState, User, Project } from './types';
 import { 
-  initSupabase, 
+  initFirebase, 
   fetchUsers, 
   createUser, 
   updateUserStatus, 
@@ -13,8 +13,8 @@ import {
   fetchProjects, 
   saveProjectDb, 
   deleteProjectDb,
-  isSupabaseConfigured
-} from './services/supabaseService';
+  isFirebaseConfigured
+} from './services/firebaseService';
 
 // UUIDs estáticos para usuários padrão garantirem compatibilidade com banco
 const DEFAULT_ADMIN_ID = '00000000-0000-0000-0000-000000000001';
@@ -26,20 +26,23 @@ const DEFAULT_GEMINI_KEY = 'AIzaSyBbRElD4suhZ5RCGQwOSbDXk0Mcq3gVTjo';
 const App: React.FC = () => {
   // Inicialização de Estado
   const [appState, setAppState] = useState<AppState>(() => {
-    // Tenta pegar do storage, se não existir, usa a chave padrão fornecida
+    const envGemini = (import.meta as any).env?.VITE_GEMINI_API_KEY;
     const storedKey = localStorage.getItem('gemini_api_key');
-    const apiKey = storedKey !== null ? storedKey : DEFAULT_GEMINI_KEY;
+    const apiKey = storedKey || envGemini || DEFAULT_GEMINI_KEY;
     
-    const sbUrl = localStorage.getItem('supabase_url') || '';
-    const sbKey = localStorage.getItem('supabase_key') || '';
+    // Tenta carregar config do Firebase
+    const envFbConfig = (import.meta as any).env?.VITE_FIREBASE_CONFIG;
+    const storedFbConfig = localStorage.getItem('firebase_config');
+    const firebaseConfigJson = storedFbConfig || envFbConfig || '';
 
-    // Inicializa Supabase se tiver credenciais
-    initSupabase(sbUrl, sbKey);
+    // Inicializa Firebase se tiver config
+    if (firebaseConfigJson) {
+        initFirebase(firebaseConfigJson);
+    }
 
     return {
       apiKey,
-      supabaseUrl: sbUrl,
-      supabaseKey: sbKey,
+      firebaseConfigJson,
       view: 'login',
       user: null,
       currentProjectId: null,
@@ -61,14 +64,9 @@ const App: React.FC = () => {
 
   const getLocalUsers = (): User[] => {
     try {
-        const stored = localStorage.getItem('lumina_users');
+        const stored = localStorage.getItem('azulflow_users');
         if (stored) {
-            // Migração rápida para UUID se os IDs antigos forem detectados
-            const parsed = JSON.parse(stored);
-            if (parsed.some((u: any) => !u.id.includes('-') || u.id === 'admin-001')) {
-                return getDefaultUsers();
-            }
-            return parsed.map((u: any) => ({ ...u, active: u.active ?? true }));
+            return JSON.parse(stored);
         }
     } catch (e) {}
     return getDefaultUsers();
@@ -76,7 +74,7 @@ const App: React.FC = () => {
 
   const getLocalProjects = (): Project[] => {
       try {
-        const stored = localStorage.getItem('lumina_projects');
+        const stored = localStorage.getItem('azulflow_projects');
         if (stored) return JSON.parse(stored);
       } catch (e) {}
       return [];
@@ -84,29 +82,31 @@ const App: React.FC = () => {
 
   // --- Efeitos de Carregamento de Dados ---
 
-  // 1. Carregar Usuários (Supabase ou LocalStorage)
+  // 1. Carregar Usuários (Firebase ou LocalStorage)
   useEffect(() => {
     const loadUsers = async () => {
       setLoadingData(true);
       
-      if (isSupabaseConfigured()) {
+      if (isFirebaseConfigured()) {
         try {
           const dbUsers = await fetchUsers();
-          if (dbUsers.length > 0) {
+          // Verifica se retornou array válido e com itens
+          if (Array.isArray(dbUsers) && dbUsers.length > 0) {
             setUsers(dbUsers);
           } else {
-             // AUTO-SEED: Se DB vazio (primeira conexão), insere os defaults no Supabase
-             console.log("Banco de dados vazio. Realizando Seed inicial...");
+             // AUTO-SEED: Se DB vazio (primeira conexão), insere os defaults no Firebase
+             console.log("Banco de dados vazio ou coleção inexistente. Tentando Seed inicial...");
              const defaults = getDefaultUsers();
              setUsers(defaults);
              
              // Insere silenciosamente no banco
              for (const u of defaults) {
-                 await createUser(u);
+                 const { error } = await createUser(u);
+                 if (error) console.error("Falha no Seed Automático:", error);
              }
           }
         } catch (e) {
-          console.error("Erro ao carregar do Supabase", e);
+          console.error("Erro crítico ao carregar do Firebase", e);
           setUsers(getLocalUsers());
         }
       } else {
@@ -116,15 +116,14 @@ const App: React.FC = () => {
     };
 
     loadUsers();
-  }, [appState.supabaseUrl, appState.supabaseKey]);
+  }, [appState.firebaseConfigJson]);
 
-  // 2. Carregar Projetos (Supabase ou LocalStorage)
-  // Nota: Agora depende de appState.user para filtrar corretamente
+  // 2. Carregar Projetos (Firebase ou LocalStorage)
   useEffect(() => {
     if (!appState.user) return; // Só carrega se estiver logado
 
     const loadProjects = async () => {
-        if (isSupabaseConfigured()) {
+        if (isFirebaseConfigured()) {
             // Se for admin, carrega tudo (passando undefined). Se for user, passa ID.
             const targetId = appState.user?.role === 'admin' ? undefined : appState.user?.id;
             const dbProjects = await fetchProjects(targetId);
@@ -134,7 +133,7 @@ const App: React.FC = () => {
         }
     };
     loadProjects();
-  }, [appState.supabaseUrl, appState.supabaseKey, appState.user]);
+  }, [appState.firebaseConfigJson, appState.user]);
 
   // 3. Verificar Sessão Persistida (Lembrar de mim)
   useEffect(() => {
@@ -142,7 +141,7 @@ const App: React.FC = () => {
     if (users.length === 0 && !loadingData) return; // Aguarda usuários carregarem
 
     try {
-        const sessionStr = localStorage.getItem('lumina_session');
+        const sessionStr = localStorage.getItem('azulflow_session');
         if (sessionStr) {
             const sessionUser = JSON.parse(sessionStr);
             const validUser = users.find(u => u.id === sessionUser.id && u.active);
@@ -154,7 +153,7 @@ const App: React.FC = () => {
                      return { ...prev, user: { ...validUser, isAuthenticated: true }, view: 'dashboard' };
                  });
             } else {
-                localStorage.removeItem('lumina_session');
+                localStorage.removeItem('azulflow_session');
             }
         }
     } catch (e) {
@@ -167,7 +166,7 @@ const App: React.FC = () => {
   const handleAuthenticate = async (username: string, pass: string, remember: boolean): Promise<{ success: boolean; error?: string }> => {
     // Re-busca usuários do DB se possível para garantir login atualizado
     let currentUsers = users;
-    if (isSupabaseConfigured()) {
+    if (isFirebaseConfigured()) {
         const dbUsers = await fetchUsers();
         if (dbUsers.length > 0) {
             setUsers(dbUsers);
@@ -191,7 +190,7 @@ const App: React.FC = () => {
         }));
 
         if (remember) {
-            localStorage.setItem('lumina_session', JSON.stringify(authenticatedUser));
+            localStorage.setItem('azulflow_session', JSON.stringify(authenticatedUser));
         }
 
         return { success: true };
@@ -200,7 +199,7 @@ const App: React.FC = () => {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('lumina_session');
+    localStorage.removeItem('azulflow_session');
     setAppState(prev => ({ 
         ...prev, 
         user: null, 
@@ -211,14 +210,13 @@ const App: React.FC = () => {
     }));
   };
 
-  const handleSaveSettings = (apiKey: string, sbUrl: string, sbKey: string) => {
+  const handleSaveSettings = (apiKey: string, fbConfig: string) => {
     localStorage.setItem('gemini_api_key', apiKey);
-    localStorage.setItem('supabase_url', sbUrl);
-    localStorage.setItem('supabase_key', sbKey);
+    localStorage.setItem('firebase_config', fbConfig);
     
-    initSupabase(sbUrl, sbKey); // Reinicia conexão imediatamente
+    initFirebase(fbConfig); // Reinicia conexão imediatamente
     
-    setAppState(prev => ({ ...prev, apiKey, supabaseUrl: sbUrl, supabaseKey: sbKey }));
+    setAppState(prev => ({ ...prev, apiKey, firebaseConfigJson: fbConfig }));
   };
 
   // --- Data Management (Hybrid: State + DB + LocalStorage) ---
@@ -228,34 +226,27 @@ const App: React.FC = () => {
     setUsers(prev => [...prev, newUser]);
     
     // Salva
-    if (isSupabaseConfigured()) {
+    if (isFirebaseConfigured()) {
         const { error } = await createUser(newUser);
         
         if (error) {
-            // Se falhar, reverte a interface e avisa o usuário
             console.error("Erro ao salvar no banco:", error);
             setUsers(prev => prev.filter(u => u.id !== newUser.id));
-            
-            // Mensagem amigável sobre RLS
-            let msg = `Erro ao salvar no banco: ${error.message}`;
-            if (error.code === '42501' || error.message?.includes('violates row-level security')) {
-                msg = "ERRO DE PERMISSÃO (RLS):\n\nO Supabase bloqueou a criação do usuário.\n\nSOLUÇÃO: Vá no painel do Supabase > Table Editor > users > Clique em 'RLS Policy' e desative o RLS (ou adicione uma política 'INSERT' para 'public').";
-            }
-            alert(msg);
+            alert(`Erro ao salvar no banco: ${error.message}`);
         }
     } else {
-        localStorage.setItem('lumina_users', JSON.stringify([...users, newUser]));
+        localStorage.setItem('azulflow_users', JSON.stringify([...users, newUser]));
     }
   };
 
   const handleDeleteUser = async (userId: string) => {
     setUsers(prev => prev.filter(u => u.id !== userId));
     
-    if (isSupabaseConfigured()) {
+    if (isFirebaseConfigured()) {
         await deleteUserDb(userId);
     } else {
         const updated = users.filter(u => u.id !== userId);
-        localStorage.setItem('lumina_users', JSON.stringify(updated));
+        localStorage.setItem('azulflow_users', JSON.stringify(updated));
     }
   };
 
@@ -267,10 +258,10 @@ const App: React.FC = () => {
 
       const targetUser = updatedUsers.find(u => u.id === userId);
       
-      if (isSupabaseConfigured() && targetUser) {
+      if (isFirebaseConfigured() && targetUser) {
           await updateUserStatus(userId, targetUser.active);
       } else {
-          localStorage.setItem('lumina_users', JSON.stringify(updatedUsers));
+          localStorage.setItem('azulflow_users', JSON.stringify(updatedUsers));
       }
   };
 
@@ -285,28 +276,28 @@ const App: React.FC = () => {
     }));
 
     // 2. Persiste a exclusão
-    if (isSupabaseConfigured()) {
+    if (isFirebaseConfigured()) {
         await deleteProjectDb(projectId);
     } else {
         const updated = appState.projects.filter(p => p.id !== projectId);
-        localStorage.setItem('lumina_projects', JSON.stringify(updated));
+        localStorage.setItem('azulflow_projects', JSON.stringify(updated));
     }
   };
 
   // Observa mudanças em projects no AppState para salvar (autosave)
   useEffect(() => {
-    if (appState.projects.length === 0 && !isSupabaseConfigured()) return;
+    if (appState.projects.length === 0 && !isFirebaseConfigured()) return;
 
     // Se mudou algo no projeto atual (ex: gerou novo codigo), salva
     const currentProject = appState.projects.find(p => p.id === appState.currentProjectId);
     
-    if (isSupabaseConfigured() && currentProject) {
+    if (isFirebaseConfigured() && currentProject) {
         // Salva apenas o projeto modificado para economizar requisições
         saveProjectDb({ ...currentProject, userId: appState.user?.id });
     } else {
         // Backup local
         if (appState.projects.length > 0) {
-            localStorage.setItem('lumina_projects', JSON.stringify(appState.projects));
+            localStorage.setItem('azulflow_projects', JSON.stringify(appState.projects));
         }
     }
   }, [appState.projects, appState.currentProjectId]);
@@ -332,8 +323,7 @@ const App: React.FC = () => {
       {appState.view === 'settings' && (
         <Settings 
           apiKey={appState.apiKey} 
-          supabaseUrl={appState.supabaseUrl}
-          supabaseKey={appState.supabaseKey}
+          firebaseConfigJson={appState.firebaseConfigJson}
           userRole={appState.user?.role}
           onSave={handleSaveSettings} 
           onBack={() => setAppState(prev => ({ ...prev, view: 'dashboard' }))} 
