@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
 import { Attachment, AuditResult } from "../types";
 
 const SYSTEM_INSTRUCTION = `
@@ -42,10 +42,13 @@ export const generateLandingPage = async (
 ): Promise<string> => {
   if (!apiKey) throw new Error("Chave da API não configurada.");
 
-  const ai = new GoogleGenAI({ apiKey });
+  const genAI = new GoogleGenerativeAI(apiKey);
   
-  // Usamos o gemini-3-pro-preview
-  const modelId = "gemini-3-pro-preview";
+  // Usando modelo estável 1.5 Pro que é compatível com a SDK pública
+  const model = genAI.getGenerativeModel({ 
+    model: "gemini-1.5-pro",
+    systemInstruction: SYSTEM_INSTRUCTION
+  });
 
   let fullPrompt = prompt;
   if (currentHtml) {
@@ -77,21 +80,9 @@ export const generateLandingPage = async (
   parts.push({ text: fullPrompt });
 
   try {
-    const response = await ai.models.generateContent({
-      model: modelId,
-      contents: [
-        {
-          role: 'user',
-          parts: parts
-        }
-      ],
-      config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
-        temperature: 0.4,
-      }
-    });
-
-    let text = response.text || "";
+    const result = await model.generateContent(parts);
+    const response = await result.response;
+    let text = response.text() || "";
     
     // Limpeza de segurança
     text = text.replace(/```html/g, '').replace(/```/g, '').trim();
@@ -105,41 +96,41 @@ export const generateLandingPage = async (
 
 export const runNeuralAudit = async (apiKey: string, htmlCode: string): Promise<AuditResult> => {
     if (!apiKey) throw new Error("Chave da API não configurada.");
-    const ai = new GoogleGenAI({ apiKey });
-    const modelId = "gemini-3-pro-preview";
-
-    try {
-        const response = await ai.models.generateContent({
-            model: modelId,
-            contents: `Analise o seguinte código HTML e gere um relatório de auditoria em formato JSON:\n\n${htmlCode}`,
-            config: {
-                systemInstruction: AUDIT_SYSTEM_INSTRUCTION,
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.OBJECT,
-                    properties: {
-                        seoScore: { type: Type.INTEGER, description: "Nota de 0 a 100 para SEO" },
-                        performanceScore: { type: Type.INTEGER, description: "Nota de 0 a 100 para Performance (estrutura, tamanho, scripts)" },
-                        accessibilityScore: { type: Type.INTEGER, description: "Nota de 0 a 100 para Acessibilidade (contraste, ARIA, tags semânticas)" },
-                        summary: { type: Type.STRING, description: "Um resumo geral curto da qualidade da página" },
-                        suggestions: {
-                            type: Type.ARRAY,
-                            items: {
-                                type: Type.OBJECT,
-                                properties: {
-                                    category: { type: Type.STRING, enum: ["SEO", "Performance", "Acessibilidade", "Design"] },
-                                    title: { type: Type.STRING },
-                                    description: { type: Type.STRING },
-                                    impact: { type: Type.STRING, enum: ["Alto", "Médio", "Baixo"] }
-                                }
+    const genAI = new GoogleGenerativeAI(apiKey);
+    
+    const model = genAI.getGenerativeModel({
+        model: "gemini-1.5-pro",
+        systemInstruction: AUDIT_SYSTEM_INSTRUCTION,
+        generationConfig: {
+            responseMimeType: "application/json",
+            responseSchema: {
+                type: SchemaType.OBJECT,
+                properties: {
+                    seoScore: { type: SchemaType.INTEGER, description: "Nota de 0 a 100 para SEO" },
+                    performanceScore: { type: SchemaType.INTEGER, description: "Nota de 0 a 100 para Performance (estrutura, tamanho, scripts)" },
+                    accessibilityScore: { type: SchemaType.INTEGER, description: "Nota de 0 a 100 para Acessibilidade (contraste, ARIA, tags semânticas)" },
+                    summary: { type: SchemaType.STRING, description: "Um resumo geral curto da qualidade da página" },
+                    suggestions: {
+                        type: SchemaType.ARRAY,
+                        items: {
+                            type: SchemaType.OBJECT,
+                            properties: {
+                                category: { type: SchemaType.STRING, enum: ["SEO", "Performance", "Acessibilidade", "Design"] },
+                                title: { type: SchemaType.STRING },
+                                description: { type: SchemaType.STRING },
+                                impact: { type: SchemaType.STRING, enum: ["Alto", "Médio", "Baixo"] }
                             }
                         }
                     }
                 }
             }
-        });
+        }
+    });
 
-        const jsonStr = response.text || "{}";
+    try {
+        const result = await model.generateContent(`Analise o seguinte código HTML e gere um relatório de auditoria em formato JSON:\n\n${htmlCode}`);
+        const response = await result.response;
+        const jsonStr = response.text() || "{}";
         return JSON.parse(jsonStr) as AuditResult;
     } catch (error) {
         console.error("Erro na Auditoria Neural:", error);
