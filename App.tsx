@@ -92,11 +92,20 @@ const App: React.FC = () => {
              // Insere silenciosamente no banco
              for (const u of defaults) {
                  const { error } = await createUser(u);
-                 if (error) console.error("Falha no Seed Automático:", error);
+                 // Se der erro no seed (permissão ou outro), apenas loga warning se não for permissão
+                 if (error && (error as any).code !== 'permission-denied') {
+                     console.warn("Falha no Seed Automático:", error);
+                 }
              }
           }
-        } catch (e) {
-          console.error("Erro crítico ao carregar do Firebase", e);
+        } catch (e: any) {
+          // Se for erro de permissão, o serviço já tratou e desativou o DB.
+          // Apenas logamos informativo e carregamos local.
+          if (e?.code === 'permission-denied' || e?.message?.includes('Missing or insufficient permissions')) {
+             console.log("Modo Offline ativado (Permissões do Firestore).");
+          } else {
+             console.error("Erro crítico ao carregar do Firebase", e);
+          }
           setUsers(getLocalUsers());
         }
       } else {
@@ -157,10 +166,14 @@ const App: React.FC = () => {
     // Re-busca usuários do DB se possível para garantir login atualizado
     let currentUsers = users;
     if (isFirebaseConfigured()) {
-        const dbUsers = await fetchUsers();
-        if (dbUsers.length > 0) {
-            setUsers(dbUsers);
-            currentUsers = dbUsers;
+        try {
+            const dbUsers = await fetchUsers();
+            if (dbUsers.length > 0) {
+                setUsers(dbUsers);
+                currentUsers = dbUsers;
+            }
+        } catch (e) {
+            // Ignora erro de fetch no login, usa cache local
         }
     }
 
@@ -192,11 +205,13 @@ const App: React.FC = () => {
      // Re-busca para garantir que não estamos duplicando
      let currentUsers = users;
      if (isFirebaseConfigured()) {
-         const dbUsers = await fetchUsers();
-         if (dbUsers.length > 0) {
-             setUsers(dbUsers);
-             currentUsers = dbUsers;
-         }
+         try {
+             const dbUsers = await fetchUsers();
+             if (dbUsers.length > 0) {
+                 setUsers(dbUsers);
+                 currentUsers = dbUsers;
+             }
+         } catch(e) { /* ignore */ }
      }
 
      if (currentUsers.some(u => u.username.toLowerCase() === username.toLowerCase())) {
@@ -253,11 +268,19 @@ const App: React.FC = () => {
         const { error } = await createUser(newUser);
         
         if (error) {
-            console.error("Erro ao salvar no banco:", error);
+            // Se não for permissão negada, loga
+            if ((error as any).code !== 'permission-denied') {
+                console.error("Erro ao salvar no banco:", error);
+            }
+            
             // Reverte em caso de erro no banco para evitar desincronia
             setUsers(prev => prev.filter(u => u.id !== newUser.id));
+            
             // Não alertamos aqui se for chamado pelo handleRegister para tratarmos o erro lá
-            if (newUser.role === 'admin') alert(`Erro ao salvar no banco: ${error.message}`);
+            // Apenas para admin manual
+            if (newUser.role === 'admin' && (error as any).code !== 'permission-denied') {
+                 alert(`Erro ao salvar no banco: ${error.message}`);
+            }
         }
     } else {
         localStorage.setItem('azulflow_users', JSON.stringify([...users, newUser]));

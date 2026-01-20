@@ -56,13 +56,15 @@ export const isFirebaseConfigured = () => !!db;
 
 // Helper interno para tratar erros de permissão e forçar modo offline
 const handleFirebaseError = (error: any) => {
-    console.error("Firebase Ops Error:", error);
     // Se for erro de permissão (regras do Firestore bloqueando), desativa o DB para a sessão
     if (error?.code === 'permission-denied' || error?.message?.includes('Missing or insufficient permissions')) {
         console.warn("Azul Flow: Permissões do Firestore negadas. Alternando automaticamente para modo Offline (LocalStorage).");
         db = null; 
         return true;
     }
+    
+    // Apenas loga erro real se NÃO for permissão
+    console.error("Firebase Ops Error:", error);
     return false;
 };
 
