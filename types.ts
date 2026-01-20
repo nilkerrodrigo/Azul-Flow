@@ -25,6 +25,7 @@ export interface Project {
   html: string;
   lastModified: number;
   userId?: string; // Opcional para manter compatibilidade com projetos antigos
+  messages?: ChatMessage[]; // Histórico do chat persistido
 }
 
 export type ViewState = 'dashboard' | 'settings' | 'login' | 'admin';
@@ -46,9 +47,6 @@ export interface AuditResult {
 
 export interface AppState {
   apiKey: string; // Gemini API Key
-  
-  // Firebase Config (armazenado como JSON string para flexibilidade)
-  firebaseConfigJson: string; 
   
   view: ViewState;
   user: User | null;

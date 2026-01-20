@@ -14,31 +14,57 @@ import {
 } from 'firebase/firestore';
 import { User, Project } from '../types';
 
+// ==========================================
+// CONFIGURAÇÃO DO FIREBASE
+// ==========================================
+const firebaseConfig = {
+  apiKey: "AIzaSyDAA4gqDiKi9gqy03GbAlbrzmu-sChg6Fs",
+  authDomain: "banco-de-dados-azul-creative.firebaseapp.com",
+  projectId: "banco-de-dados-azul-creative",
+  storageBucket: "banco-de-dados-azul-creative.firebasestorage.app",
+  messagingSenderId: "625299587434",
+  appId: "1:625299587434:web:312bfc295bf13a962b2513",
+  measurementId: "G-8XBV4DR5CX"
+};
+
 let app: FirebaseApp | null = null;
 let db: Firestore | null = null;
 
-export const initFirebase = (configJson: string) => {
-  if (!configJson) {
+export const initFirebase = () => {
+  // Verificação de segurança simples
+  if (!firebaseConfig.apiKey) {
+    console.warn("Azul Flow: Configuração do Firebase vazia. O modo offline/localstorage será usado.");
     app = null;
     db = null;
     return;
   }
 
   try {
-    const config = JSON.parse(configJson);
-    // Evita reinicializar se já existir com a mesma config (básico)
     if (!app) {
-        app = initializeApp(config);
+        app = initializeApp(firebaseConfig);
         db = getFirestore(app);
+        console.log("Azul Flow: Firebase conectado com sucesso.");
     }
   } catch (e) {
-    console.error("Configuração do Firebase inválida:", e);
+    console.error("Azul Flow: Erro na inicialização do Firebase:", e);
     app = null;
     db = null;
   }
 };
 
 export const isFirebaseConfigured = () => !!db;
+
+// Helper interno para tratar erros de permissão e forçar modo offline
+const handleFirebaseError = (error: any) => {
+    console.error("Firebase Ops Error:", error);
+    // Se for erro de permissão (regras do Firestore bloqueando), desativa o DB para a sessão
+    if (error?.code === 'permission-denied' || error?.message?.includes('Missing or insufficient permissions')) {
+        console.warn("Azul Flow: Permissões do Firestore negadas. Alternando automaticamente para modo Offline (LocalStorage).");
+        db = null; 
+        return true;
+    }
+    return false;
+};
 
 // --- Users ---
 
@@ -60,8 +86,11 @@ export const fetchUsers = async (): Promise<User[]> => {
         } as User;
     });
     return usersList;
-  } catch (error) {
-    console.error("Erro ao buscar usuários:", error);
+  } catch (error: any) {
+    // Se for erro de permissão, relança para o App.tsx pegar e usar fallback
+    if (handleFirebaseError(error)) {
+        throw error;
+    }
     return [];
   }
 };
@@ -79,7 +108,7 @@ export const createUser = async (user: User) => {
     });
     return { data: user };
   } catch (error: any) {
-      console.error('Error creating user:', error);
+      handleFirebaseError(error);
       return { error };
   }
 };
@@ -89,8 +118,8 @@ export const updateUserStatus = async (userId: string, active: boolean) => {
   try {
     const userRef = doc(db, 'users', userId);
     await updateDoc(userRef, { active });
-  } catch (error) {
-    console.error('Error updating user:', error);
+  } catch (error: any) {
+    handleFirebaseError(error);
   }
 };
 
@@ -98,8 +127,8 @@ export const deleteUserDb = async (userId: string) => {
   if (!db) return;
   try {
     await deleteDoc(doc(db, 'users', userId));
-  } catch (error) {
-    console.error('Error deleting user:', error);
+  } catch (error: any) {
+    handleFirebaseError(error);
   }
 };
 
@@ -119,13 +148,10 @@ export const fetchProjects = async (userId?: string): Promise<Project[]> => {
       const snapshot = await getDocs(q);
       
       // Filtragem manual caso o índice composto não exista ainda no Firestore
-      // (O Firestore exige índice para queries com where + orderBy em campos diferentes)
       let docs = snapshot.docs;
       
-      // Fallback client-side filtering se a query falhar ou retornar desordenado por falta de índice
+      // Fallback client-side filtering se a query falhar ou retornar desordenado
       if (userId && docs.length === 0) {
-        // Tenta buscar tudo e filtrar no cliente se o índice estiver faltando (para dev)
-        // Em produção, deve-se criar o índice no console do Firebase
         const allSnapshot = await getDocs(projectsCol);
         docs = allSnapshot.docs.filter(d => d.data().user_id === userId);
         docs.sort((a, b) => b.data().last_modified - a.data().last_modified);
@@ -138,12 +164,15 @@ export const fetchProjects = async (userId?: string): Promise<Project[]> => {
             name: data.name,
             html: data.html,
             lastModified: data.last_modified,
-            userId: data.user_id
+            userId: data.user_id,
+            messages: data.messages || [] // Recupera mensagens ou array vazio
           } as Project;
       });
 
-  } catch (error) {
-    console.error('Error fetching projects:', error);
+  } catch (error: any) {
+    if (handleFirebaseError(error)) {
+        return []; // Retorna vazio, mas db=null fará a próxima tentativa ser local
+    }
     return [];
   }
 };
@@ -156,10 +185,11 @@ export const saveProjectDb = async (project: Project) => {
           name: project.name,
           html: project.html,
           last_modified: project.lastModified,
-          user_id: project.userId
+          user_id: project.userId,
+          messages: project.messages || [] // Salva o histórico
       });
-  } catch (error) {
-      console.error('Error saving project:', error);
+  } catch (error: any) {
+      handleFirebaseError(error);
   }
 };
 
@@ -167,7 +197,7 @@ export const deleteProjectDb = async (projectId: string) => {
   if (!db) return;
   try {
       await deleteDoc(doc(db, 'projects', projectId));
-  } catch (error) {
-      console.error('Error deleting project:', error);
+  } catch (error: any) {
+      handleFirebaseError(error);
   }
 };

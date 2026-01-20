@@ -20,29 +20,19 @@ import {
 const DEFAULT_ADMIN_ID = '00000000-0000-0000-0000-000000000001';
 const DEFAULT_USER_ID = '00000000-0000-0000-0000-000000000002';
 
-// Chave Padrão (Fallback)
-const DEFAULT_GEMINI_KEY = 'AIzaSyBbRElD4suhZ5RCGQwOSbDXk0Mcq3gVTjo';
-
 const App: React.FC = () => {
   // Inicialização de Estado
   const [appState, setAppState] = useState<AppState>(() => {
     const envGemini = (import.meta as any).env?.VITE_GEMINI_API_KEY;
     const storedKey = localStorage.getItem('gemini_api_key');
-    const apiKey = storedKey || envGemini || DEFAULT_GEMINI_KEY;
+    // Removemos a chave padrão insegura. Se não houver chave, o usuário deve inserir nas configurações.
+    const apiKey = storedKey || envGemini || '';
     
-    // Tenta carregar config do Firebase
-    const envFbConfig = (import.meta as any).env?.VITE_FIREBASE_CONFIG;
-    const storedFbConfig = localStorage.getItem('firebase_config');
-    const firebaseConfigJson = storedFbConfig || envFbConfig || '';
-
-    // Inicializa Firebase se tiver config
-    if (firebaseConfigJson) {
-        initFirebase(firebaseConfigJson);
-    }
+    // Inicializa Firebase com a config hardcoded no serviço
+    initFirebase();
 
     return {
       apiKey,
-      firebaseConfigJson,
       view: 'login',
       user: null,
       currentProjectId: null,
@@ -116,7 +106,7 @@ const App: React.FC = () => {
     };
 
     loadUsers();
-  }, [appState.firebaseConfigJson]);
+  }, []); // Executa apenas na montagem, pois a config do Firebase agora é estática
 
   // 2. Carregar Projetos (Firebase ou LocalStorage)
   useEffect(() => {
@@ -133,7 +123,7 @@ const App: React.FC = () => {
         }
     };
     loadProjects();
-  }, [appState.firebaseConfigJson, appState.user]);
+  }, [appState.user]);
 
   // 3. Verificar Sessão Persistida (Lembrar de mim)
   useEffect(() => {
@@ -198,6 +188,43 @@ const App: React.FC = () => {
     return { success: false };
   };
 
+  const handleRegister = async (username: string, pass: string): Promise<{ success: boolean; error?: string }> => {
+     // Re-busca para garantir que não estamos duplicando
+     let currentUsers = users;
+     if (isFirebaseConfigured()) {
+         const dbUsers = await fetchUsers();
+         if (dbUsers.length > 0) {
+             setUsers(dbUsers);
+             currentUsers = dbUsers;
+         }
+     }
+
+     if (currentUsers.some(u => u.username.toLowerCase() === username.toLowerCase())) {
+         return { success: false, error: 'Este nome de usuário já está em uso.' };
+     }
+
+     const newUser: User = {
+         id: crypto.randomUUID(),
+         username: username,
+         password: pass,
+         role: 'user',
+         active: true,
+         isAuthenticated: true
+     };
+
+     // Salva no banco/localstorage via helper existente
+     await handleAddUser(newUser);
+
+     // Loga automaticamente
+     setAppState(prev => ({ 
+        ...prev, 
+        user: newUser, 
+        view: 'dashboard' 
+    }));
+
+     return { success: true };
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('azulflow_session');
     setAppState(prev => ({ 
@@ -210,13 +237,9 @@ const App: React.FC = () => {
     }));
   };
 
-  const handleSaveSettings = (apiKey: string, fbConfig: string) => {
+  const handleSaveSettings = (apiKey: string) => {
     localStorage.setItem('gemini_api_key', apiKey);
-    localStorage.setItem('firebase_config', fbConfig);
-    
-    initFirebase(fbConfig); // Reinicia conexão imediatamente
-    
-    setAppState(prev => ({ ...prev, apiKey, firebaseConfigJson: fbConfig }));
+    setAppState(prev => ({ ...prev, apiKey }));
   };
 
   // --- Data Management (Hybrid: State + DB + LocalStorage) ---
@@ -231,8 +254,10 @@ const App: React.FC = () => {
         
         if (error) {
             console.error("Erro ao salvar no banco:", error);
+            // Reverte em caso de erro no banco para evitar desincronia
             setUsers(prev => prev.filter(u => u.id !== newUser.id));
-            alert(`Erro ao salvar no banco: ${error.message}`);
+            // Não alertamos aqui se for chamado pelo handleRegister para tratarmos o erro lá
+            if (newUser.role === 'admin') alert(`Erro ao salvar no banco: ${error.message}`);
         }
     } else {
         localStorage.setItem('azulflow_users', JSON.stringify([...users, newUser]));
@@ -306,7 +331,10 @@ const App: React.FC = () => {
   return (
     <div className="font-sans text-slate-200">
       {appState.view === 'login' && (
-        <Login onAuthenticate={handleAuthenticate} />
+        <Login 
+            onAuthenticate={handleAuthenticate} 
+            onRegister={handleRegister} 
+        />
       )}
 
       {appState.view === 'dashboard' && appState.user && (
@@ -323,7 +351,6 @@ const App: React.FC = () => {
       {appState.view === 'settings' && (
         <Settings 
           apiKey={appState.apiKey} 
-          firebaseConfigJson={appState.firebaseConfigJson}
           userRole={appState.user?.role}
           onSave={handleSaveSettings} 
           onBack={() => setAppState(prev => ({ ...prev, view: 'dashboard' }))} 

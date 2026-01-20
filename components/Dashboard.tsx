@@ -275,12 +275,18 @@ const Dashboard: React.FC<DashboardProps> = ({ appState, setAppState, onOpenSett
   };
 
   const handleLoadProject = (project: Project) => {
+    // Carrega mensagens do projeto ou cria mensagem inicial se vazio
+    const projectMessages = project.messages && project.messages.length > 0 
+        ? project.messages 
+        : [{ role: 'model' as const, text: `Projeto "${project.name}" carregado. O histórico anterior não estava salvo. O que deseja alterar agora?`, timestamp: Date.now() }];
+
     setAppState(prev => ({
       ...prev,
       currentProjectId: project.id,
       generatedCode: project.html,
-      messages: [{ role: 'model', text: `Projeto "${project.name}" carregado. O que deseja alterar?`, timestamp: Date.now() }]
+      messages: projectMessages
     }));
+    
     setHistory([project.html]);
     setHistoryIndex(0);
     setSidebarTab('chat');
@@ -301,10 +307,13 @@ const Dashboard: React.FC<DashboardProps> = ({ appState, setAppState, onOpenSett
 
     const newMessage = { role: 'user' as const, text: displayMsg, timestamp: Date.now() };
     
+    // Atualização otimista do chat
+    const updatedMessages = [...appState.messages, newMessage];
+    
     setAppState(prev => ({
       ...prev,
       isGenerating: true,
-      messages: [...prev.messages, newMessage]
+      messages: updatedMessages
     }));
     
     if (!overridePrompt) setPrompt('');
@@ -325,6 +334,9 @@ const Dashboard: React.FC<DashboardProps> = ({ appState, setAppState, onOpenSett
         currentAttachment
       );
 
+      const successMessage = { role: 'model' as const, text: 'Página atualizada com sucesso!', timestamp: Date.now() };
+      const finalMessages = [...updatedMessages, successMessage];
+
       setAppState(prev => {
         const now = Date.now();
         let newProject = null;
@@ -337,13 +349,14 @@ const Dashboard: React.FC<DashboardProps> = ({ appState, setAppState, onOpenSett
                 name: textToUse.slice(0, 30) || "Nova Landing Page",
                 html: generatedHtml,
                 lastModified: now,
-                userId: prev.user?.id
+                userId: prev.user?.id,
+                messages: finalMessages // Salva o histórico no novo projeto
             };
             updatedProjects = [newProject, ...updatedProjects];
         } else {
             updatedProjects = updatedProjects.map(p => 
                 p.id === prev.currentProjectId 
-                ? { ...p, html: generatedHtml, lastModified: now } 
+                ? { ...p, html: generatedHtml, lastModified: now, messages: finalMessages } // Atualiza histórico e html
                 : p
             );
         }
@@ -354,7 +367,7 @@ const Dashboard: React.FC<DashboardProps> = ({ appState, setAppState, onOpenSett
             currentProjectId: prev.currentProjectId || newProject?.id || null,
             generatedCode: generatedHtml,
             isGenerating: false,
-            messages: [...prev.messages, { role: 'model' as const, text: 'Página atualizada com sucesso!', timestamp: now }]
+            messages: finalMessages
         };
       });
 
