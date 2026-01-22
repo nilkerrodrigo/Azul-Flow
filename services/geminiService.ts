@@ -75,7 +75,7 @@ export const generateLandingPage = async (
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
+      model: 'gemini-1.5-pro',
       contents: parts,
       config: {
         systemInstruction: SYSTEM_INSTRUCTION
@@ -142,7 +142,7 @@ export const runNeuralAudit = async (apiKey: string, htmlCode: string): Promise<
         };
 
         const response = await ai.models.generateContent({
-            model: 'gemini-3-pro-preview',
+            model: 'gemini-1.5-pro',
             contents: `Analise o seguinte código HTML e gere um relatório de auditoria em formato JSON:\n\n${htmlCode}`,
             config: {
                 systemInstruction: AUDIT_SYSTEM_INSTRUCTION,
