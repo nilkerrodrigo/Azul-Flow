@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type, Schema } from "@google/genai";
+import { GoogleGenAI, SchemaType } from "@google/genai";
 import { Attachment, AuditResult } from "../types";
 
 const SYSTEM_INSTRUCTION = `
@@ -74,12 +74,11 @@ export const generateLandingPage = async (
   parts.push({ text: fullPrompt });
 
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
-      contents: { parts },
-      config: {
-        systemInstruction: SYSTEM_INSTRUCTION
-      }
+    const model = ai.models.get('gemini-2.0-flash-exp');
+    
+    const response = await model.generateContent({
+      contents: parts,
+      systemInstruction: SYSTEM_INSTRUCTION
     });
     
     let text = response.text || "";
@@ -99,33 +98,36 @@ export const runNeuralAudit = async (apiKey: string, htmlCode: string): Promise<
     const ai = new GoogleGenAI({ apiKey });
     
     try {
-        const responseSchema: Schema = {
-            type: Type.OBJECT,
+        const responseSchema = {
+            type: SchemaType.OBJECT,
             properties: {
-                seoScore: { type: Type.INTEGER, description: "Nota de 0 a 100 para SEO" },
-                performanceScore: { type: Type.INTEGER, description: "Nota de 0 a 100 para Performance (estrutura, tamanho, scripts)" },
-                accessibilityScore: { type: Type.INTEGER, description: "Nota de 0 a 100 para Acessibilidade (contraste, ARIA, tags semânticas)" },
-                summary: { type: Type.STRING, description: "Um resumo geral curto da qualidade da página" },
+                seoScore: { type: SchemaType.NUMBER, description: "Nota de 0 a 100 para SEO" },
+                performanceScore: { type: SchemaType.NUMBER, description: "Nota de 0 a 100 para Performance (estrutura, tamanho, scripts)" },
+                accessibilityScore: { type: SchemaType.NUMBER, description: "Nota de 0 a 100 para Acessibilidade (contraste, ARIA, tags semânticas)" },
+                summary: { type: SchemaType.STRING, description: "Um resumo geral curto da qualidade da página" },
                 suggestions: {
-                    type: Type.ARRAY,
+                    type: SchemaType.ARRAY,
                     items: {
-                        type: Type.OBJECT,
+                        type: SchemaType.OBJECT,
                         properties: {
-                            category: { type: Type.STRING, enum: ["SEO", "Performance", "Acessibilidade", "Design"] },
-                            title: { type: Type.STRING },
-                            description: { type: Type.STRING },
-                            impact: { type: Type.STRING, enum: ["Alto", "Médio", "Baixo"] }
-                        }
+                            category: { type: SchemaType.STRING, enum: ["SEO", "Performance", "Acessibilidade", "Design"] },
+                            title: { type: SchemaType.STRING },
+                            description: { type: SchemaType.STRING },
+                            impact: { type: SchemaType.STRING, enum: ["Alto", "Médio", "Baixo"] }
+                        },
+                        required: ["category", "title", "description", "impact"]
                     }
                 }
-            }
+            },
+            required: ["seoScore", "performanceScore", "accessibilityScore", "summary", "suggestions"]
         };
 
-        const response = await ai.models.generateContent({
-            model: 'gemini-3-pro-preview',
+        const model = ai.models.get('gemini-2.0-flash-exp');
+
+        const response = await model.generateContent({
             contents: `Analise o seguinte código HTML e gere um relatório de auditoria em formato JSON:\n\n${htmlCode}`,
-            config: {
-                systemInstruction: AUDIT_SYSTEM_INSTRUCTION,
+            systemInstruction: AUDIT_SYSTEM_INSTRUCTION,
+            generationConfig: {
                 responseMimeType: "application/json",
                 responseSchema: responseSchema
             }
@@ -137,4 +139,4 @@ export const runNeuralAudit = async (apiKey: string, htmlCode: string): Promise<
         console.error("Erro na Auditoria Neural:", error);
         throw error;
     }
-}
+};
