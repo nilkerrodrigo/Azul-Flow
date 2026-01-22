@@ -3,6 +3,7 @@ import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import Settings from './components/Settings';
 import AdminPanel from './components/AdminPanel';
+import PreviewFrame from './components/PreviewFrame'; // Reutiliza para o modo público
 import { AppState, User, Project } from './types';
 import { 
   initFirebase, 
@@ -13,7 +14,8 @@ import {
   fetchProjects, 
   saveProjectDb, 
   deleteProjectDb,
-  isFirebaseConfigured
+  isFirebaseConfigured,
+  getProjectById
 } from './services/firebaseService';
 
 // UUIDs estáticos para usuários padrão garantirem compatibilidade com banco
@@ -45,6 +47,39 @@ const App: React.FC = () => {
 
   const [users, setUsers] = useState<User[]>([]);
   const [loadingData, setLoadingData] = useState(false);
+  
+  // Estado para Visualização Pública
+  const [publicProject, setPublicProject] = useState<Project | null>(null);
+  const [isPublicView, setIsPublicView] = useState(false);
+  const [loadingPublic, setLoadingPublic] = useState(true);
+
+  // --- Efeito de Rota Pública ---
+  useEffect(() => {
+    const checkPublicRoute = async () => {
+        const params = new URLSearchParams(window.location.search);
+        const publicId = params.get('p');
+
+        if (publicId) {
+            setIsPublicView(true);
+            setLoadingPublic(true);
+            // Se estiver configurado, busca do Firebase
+            if (isFirebaseConfigured()) {
+                const project = await getProjectById(publicId);
+                setPublicProject(project);
+            } else {
+                // Tenta buscar do LocalStorage (funciona apenas no próprio navegador do criador)
+                const stored = localStorage.getItem('azulflow_projects');
+                if (stored) {
+                    const localProjects = JSON.parse(stored) as Project[];
+                    const project = localProjects.find(p => p.id === publicId);
+                    setPublicProject(project || null);
+                }
+            }
+            setLoadingPublic(false);
+        }
+    };
+    checkPublicRoute();
+  }, []);
 
   // --- Helpers Locais ---
   const getDefaultUsers = (): User[] => [
@@ -70,37 +105,32 @@ const App: React.FC = () => {
       return [];
   };
 
-  // --- Efeitos de Carregamento de Dados ---
+  // --- Efeitos de Carregamento de Dados (Apenas se não for view pública) ---
 
-  // 1. Carregar Usuários (Firebase ou LocalStorage)
+  // 1. Carregar Usuários
   useEffect(() => {
+    if (isPublicView) return;
+
     const loadUsers = async () => {
       setLoadingData(true);
       
       if (isFirebaseConfigured()) {
         try {
           const dbUsers = await fetchUsers();
-          // Verifica se retornou array válido e com itens
           if (Array.isArray(dbUsers) && dbUsers.length > 0) {
             setUsers(dbUsers);
           } else {
-             // AUTO-SEED: Se DB vazio (primeira conexão), insere os defaults no Firebase
              console.log("Banco de dados vazio ou coleção inexistente. Tentando Seed inicial...");
              const defaults = getDefaultUsers();
              setUsers(defaults);
-             
-             // Insere silenciosamente no banco
              for (const u of defaults) {
                  const { error } = await createUser(u);
-                 // Se der erro no seed (permissão ou outro), apenas loga warning se não for permissão
                  if (error && (error as any).code !== 'permission-denied') {
                      console.warn("Falha no Seed Automático:", error);
                  }
              }
           }
         } catch (e: any) {
-          // Se for erro de permissão, o serviço já tratou e desativou o DB.
-          // Apenas logamos informativo e carregamos local.
           if (e?.code === 'permission-denied' || e?.message?.includes('Missing or insufficient permissions')) {
              console.log("Modo Offline ativado (Permissões do Firestore).");
           } else {
@@ -115,15 +145,15 @@ const App: React.FC = () => {
     };
 
     loadUsers();
-  }, []); // Executa apenas na montagem, pois a config do Firebase agora é estática
+  }, [isPublicView]);
 
-  // 2. Carregar Projetos (Firebase ou LocalStorage)
+  // 2. Carregar Projetos
   useEffect(() => {
-    if (!appState.user) return; // Só carrega se estiver logado
+    if (isPublicView) return;
+    if (!appState.user) return; 
 
     const loadProjects = async () => {
         if (isFirebaseConfigured()) {
-            // Se for admin, carrega tudo (passando undefined). Se for user, passa ID.
             const targetId = appState.user?.role === 'admin' ? undefined : appState.user?.id;
             const dbProjects = await fetchProjects(targetId);
             setAppState(prev => ({ ...prev, projects: dbProjects }));
@@ -132,12 +162,12 @@ const App: React.FC = () => {
         }
     };
     loadProjects();
-  }, [appState.user]);
+  }, [appState.user, isPublicView]);
 
-  // 3. Verificar Sessão Persistida (Lembrar de mim)
+  // 3. Verificar Sessão
   useEffect(() => {
-    // Só tenta restaurar sessão depois que users foram carregados
-    if (users.length === 0 && !loadingData) return; // Aguarda usuários carregarem
+    if (isPublicView) return;
+    if (users.length === 0 && !loadingData) return;
 
     try {
         const sessionStr = localStorage.getItem('azulflow_session');
@@ -147,7 +177,6 @@ const App: React.FC = () => {
             
             if (validUser) {
                  setAppState(prev => {
-                     // Evita loop se já estiver logado
                      if (prev.user?.id === validUser.id) return prev;
                      return { ...prev, user: { ...validUser, isAuthenticated: true }, view: 'dashboard' };
                  });
@@ -158,12 +187,11 @@ const App: React.FC = () => {
     } catch (e) {
         console.error("Failed to restore session", e);
     }
-  }, [users, loadingData]);
+  }, [users, loadingData, isPublicView]);
 
   // --- Handlers ---
 
   const handleAuthenticate = async (username: string, pass: string, remember: boolean): Promise<{ success: boolean; error?: string }> => {
-    // Re-busca usuários do DB se possível para garantir login atualizado
     let currentUsers = users;
     if (isFirebaseConfigured()) {
         try {
@@ -172,9 +200,7 @@ const App: React.FC = () => {
                 setUsers(dbUsers);
                 currentUsers = dbUsers;
             }
-        } catch (e) {
-            // Ignora erro de fetch no login, usa cache local
-        }
+        } catch (e) {}
     }
 
     const validUser = currentUsers.find(u => u.username === username && u.password === pass);
@@ -202,7 +228,6 @@ const App: React.FC = () => {
   };
 
   const handleRegister = async (username: string, pass: string): Promise<{ success: boolean; error?: string }> => {
-     // Re-busca para garantir que não estamos duplicando
      let currentUsers = users;
      if (isFirebaseConfigured()) {
          try {
@@ -227,10 +252,8 @@ const App: React.FC = () => {
          isAuthenticated: true
      };
 
-     // Salva no banco/localstorage via helper existente
      await handleAddUser(newUser);
 
-     // Loga automaticamente
      setAppState(prev => ({ 
         ...prev, 
         user: newUser, 
@@ -257,27 +280,15 @@ const App: React.FC = () => {
     setAppState(prev => ({ ...prev, apiKey }));
   };
 
-  // --- Data Management (Hybrid: State + DB + LocalStorage) ---
-
   const handleAddUser = async (newUser: User) => {
-    // Atualiza estado local (Otimista)
     setUsers(prev => [...prev, newUser]);
-    
-    // Salva
     if (isFirebaseConfigured()) {
         const { error } = await createUser(newUser);
-        
         if (error) {
-            // Se não for permissão negada, loga
             if ((error as any).code !== 'permission-denied') {
                 console.error("Erro ao salvar no banco:", error);
             }
-            
-            // Reverte em caso de erro no banco para evitar desincronia
             setUsers(prev => prev.filter(u => u.id !== newUser.id));
-            
-            // Não alertamos aqui se for chamado pelo handleRegister para tratarmos o erro lá
-            // Apenas para admin manual
             if (newUser.role === 'admin' && (error as any).code !== 'permission-denied') {
                  alert(`Erro ao salvar no banco: ${error.message}`);
             }
@@ -289,7 +300,6 @@ const App: React.FC = () => {
 
   const handleDeleteUser = async (userId: string) => {
     setUsers(prev => prev.filter(u => u.id !== userId));
-    
     if (isFirebaseConfigured()) {
         await deleteUserDb(userId);
     } else {
@@ -305,7 +315,6 @@ const App: React.FC = () => {
       setUsers(updatedUsers);
 
       const targetUser = updatedUsers.find(u => u.id === userId);
-      
       if (isFirebaseConfigured() && targetUser) {
           await updateUserStatus(userId, targetUser.active);
       } else {
@@ -314,16 +323,13 @@ const App: React.FC = () => {
   };
 
   const handleDeleteProject = async (projectId: string) => {
-    // 1. Atualiza UI imediatamente (Optimistic UI)
     setAppState(prev => ({
         ...prev,
         projects: prev.projects.filter(p => p.id !== projectId),
-        // Se estiver vendo o projeto deletado, reseta a view
         currentProjectId: prev.currentProjectId === projectId ? null : prev.currentProjectId,
         generatedCode: prev.currentProjectId === projectId ? null : prev.generatedCode
     }));
 
-    // 2. Persiste a exclusão
     if (isFirebaseConfigured()) {
         await deleteProjectDb(projectId);
     } else {
@@ -332,25 +338,47 @@ const App: React.FC = () => {
     }
   };
 
-  // Observa mudanças em projects no AppState para salvar (autosave)
   useEffect(() => {
     if (appState.projects.length === 0 && !isFirebaseConfigured()) return;
-
-    // Se mudou algo no projeto atual (ex: gerou novo codigo), salva
     const currentProject = appState.projects.find(p => p.id === appState.currentProjectId);
-    
     if (isFirebaseConfigured() && currentProject) {
-        // Salva apenas o projeto modificado para economizar requisições
         saveProjectDb({ ...currentProject, userId: appState.user?.id });
     } else {
-        // Backup local
         if (appState.projects.length > 0) {
             localStorage.setItem('azulflow_projects', JSON.stringify(appState.projects));
         }
     }
   }, [appState.projects, appState.currentProjectId]);
 
+  // --- RENDERIZAÇÃO ---
 
+  // Se for visualização pública, renderiza APENAS o preview em tela cheia
+  if (isPublicView) {
+      if (loadingPublic) {
+          return (
+              <div className="flex h-screen w-full items-center justify-center bg-slate-950 text-slate-400">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mr-2"></div>
+                  Carregando página...
+              </div>
+          );
+      }
+      if (!publicProject) {
+          return (
+              <div className="flex flex-col h-screen w-full items-center justify-center bg-slate-950 text-white">
+                  <h1 className="text-3xl font-bold mb-2">404</h1>
+                  <p className="text-slate-400">Página não encontrada ou removida.</p>
+                  <a href="/" className="mt-4 text-blue-400 hover:underline">Criar minha própria página</a>
+              </div>
+          );
+      }
+      return (
+          <div className="h-screen w-full bg-white overflow-hidden">
+             <PreviewFrame html={publicProject.html} />
+          </div>
+      );
+  }
+
+  // App Normal (Privado)
   return (
     <div className="font-sans text-slate-200">
       {appState.view === 'login' && (

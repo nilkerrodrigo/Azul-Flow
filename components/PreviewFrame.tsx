@@ -22,20 +22,69 @@ const PreviewFrame = forwardRef<PreviewFrameHandle, PreviewFrameProps>(({ html, 
       return undefined;
     },
     enableEditMode: (enable: boolean) => {
-      if (iframeRef.current?.contentDocument?.body) {
-        iframeRef.current.contentDocument.body.contentEditable = enable ? 'true' : 'false';
-        // Injeta um estilo visual para indicar modo de edição
+      const doc = iframeRef.current?.contentDocument;
+      if (doc?.body) {
+        doc.body.contentEditable = enable ? 'true' : 'false';
+        
+        // Injeta estilos visuais e scripts de interação
         if (enable) {
-            const style = iframeRef.current.contentDocument.createElement('style');
+            const style = doc.createElement('style');
             style.id = 'editor-styles';
             style.innerHTML = `
-                *[contenteditable="true"]:hover { outline: 2px dashed #0ea5e9; cursor: text; }
+                *[contenteditable="true"]:hover { outline: 2px dashed #0ea5e9; cursor: pointer; }
                 *[contenteditable="true"]:focus { outline: 2px solid #0ea5e9; background-color: rgba(14, 165, 233, 0.05); }
+                img:hover { outline: 3px solid #f59e0b; cursor: alias; }
             `;
-            iframeRef.current.contentDocument.head.appendChild(style);
+            doc.head.appendChild(style);
+
+            // Adiciona Script de Interatividade para Edição
+            const script = doc.createElement('script');
+            script.id = 'editor-interactions';
+            script.textContent = `
+                document.body.addEventListener('dblclick', function(e) {
+                    if (document.body.contentEditable !== 'true') return;
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    const target = e.target;
+
+                    // 1. Edição de Imagem
+                    if (target.tagName === 'IMG') {
+                        const currentSrc = target.src;
+                        const newSrc = prompt('🖼️ Alterar Imagem\\n\\nCole o link (URL) da nova imagem:', currentSrc);
+                        if (newSrc && newSrc.trim() !== '') {
+                            target.src = newSrc;
+                        }
+                        return;
+                    }
+
+                    // 2. Edição de Cor de Fundo (Alt + Click) ou se o elemento for um bloco vazio
+                    if (e.altKey || (!target.textContent.trim() && target.tagName === 'DIV')) {
+                         const currentColor = window.getComputedStyle(target).backgroundColor;
+                         const newColor = prompt('🎨 Alterar Cor de Fundo\\n\\nDigite a cor (ex: #ff0000, blue, rgb(0,0,0)):', currentColor);
+                         if (newColor) {
+                             target.style.backgroundColor = newColor;
+                         }
+                         return;
+                    }
+
+                    // 3. Edição de Cor de Texto
+                    // Se não for imagem e não tiver Alt pressionado, assume que quer editar texto/estilo
+                    const currentColor = window.getComputedStyle(target).color;
+                    const newColor = prompt('✏️ Alterar Cor do Texto\\n\\nDigite a cor do texto:', currentColor);
+                    if (newColor) {
+                        target.style.color = newColor;
+                    }
+                });
+            `;
+            doc.body.appendChild(script);
+
         } else {
-            const style = iframeRef.current.contentDocument.getElementById('editor-styles');
+            const style = doc.getElementById('editor-styles');
             if (style) style.remove();
+            
+            const script = doc.getElementById('editor-interactions');
+            if (script) script.remove();
         }
       }
     }
@@ -69,7 +118,7 @@ const PreviewFrame = forwardRef<PreviewFrameHandle, PreviewFrameProps>(({ html, 
             doc.close();
         }
     }
-  }, [html]); // isEditing removido das dependências para evitar re-render ao alternar modo
+  }, [html]);
 
   return (
     <iframe

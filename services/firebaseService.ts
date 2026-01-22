@@ -6,6 +6,7 @@ import {
   getDocs, 
   setDoc, 
   doc, 
+  getDoc,
   deleteDoc, 
   updateDoc, 
   query, 
@@ -176,6 +177,31 @@ export const fetchProjects = async (userId?: string): Promise<Project[]> => {
         return []; // Retorna vazio, mas db=null fará a próxima tentativa ser local
     }
     return [];
+  }
+};
+
+// Nova função para buscar projeto único (Página Pública)
+export const getProjectById = async (projectId: string): Promise<Project | null> => {
+  if (!db) return null;
+  
+  try {
+      const docRef = doc(db, 'projects', projectId);
+      const docSnap = await getDoc(docRef);
+      
+      if (docSnap.exists()) {
+          const data = docSnap.data();
+          return {
+              id: docSnap.id,
+              name: data.name,
+              html: data.html,
+              lastModified: data.last_modified,
+              userId: data.user_id
+          } as Project;
+      }
+      return null;
+  } catch (error: any) {
+      console.error("Erro ao buscar projeto público:", error);
+      return null;
   }
 };
 

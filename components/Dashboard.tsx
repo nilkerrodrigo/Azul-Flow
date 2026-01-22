@@ -404,6 +404,8 @@ const Dashboard: React.FC<DashboardProps> = ({ appState, setAppState, onOpenSett
     }
   };
 
+  const publicLink = `${window.location.origin}/?p=${appState.currentProjectId}`;
+
   return (
     <div className="flex h-screen bg-slate-950 overflow-hidden">
       
@@ -460,7 +462,7 @@ const Dashboard: React.FC<DashboardProps> = ({ appState, setAppState, onOpenSett
       {/* Publish Modal */}
       {showPublishModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-            <div className="bg-slate-900 border border-slate-700 p-6 rounded-xl w-[400px] shadow-2xl relative">
+            <div className="bg-slate-900 border border-slate-700 p-6 rounded-xl w-[500px] shadow-2xl relative">
                 <button onClick={() => setShowPublishModal(false)} className="absolute top-4 right-4 text-slate-400 hover:text-white">
                     <X className="w-5 h-5" />
                 </button>
@@ -469,11 +471,12 @@ const Dashboard: React.FC<DashboardProps> = ({ appState, setAppState, onOpenSett
                         <Rocket className="w-8 h-8 text-green-500" />
                     </div>
                     <h3 className="text-xl font-bold text-white mb-2">Página Publicada!</h3>
-                    <p className="text-slate-400 mb-6 text-sm">Sua landing page está online em uma URL temporária simulada.</p>
+                    <p className="text-slate-400 mb-6 text-sm">Sua landing page está online. Qualquer pessoa com este link poderá vê-la.</p>
                     
-                    <div className="bg-slate-950 border border-slate-800 rounded-lg p-3 w-full flex items-center justify-between mb-4">
-                        <span className="text-blue-400 text-sm truncate">azul.flow/p/{appState.currentProjectId?.slice(0,8) || 'demo'}</span>
-                        <Button variant="ghost" className="h-6 text-xs" onClick={() => navigator.clipboard.writeText(`azul.flow/p/${appState.currentProjectId}`)}>Copiar</Button>
+                    <div className="bg-slate-950 border border-slate-800 rounded-lg p-3 w-full flex items-center justify-between mb-4 gap-2">
+                        <span className="text-blue-400 text-sm truncate flex-1 text-left">{publicLink}</span>
+                        <Button variant="ghost" className="h-6 text-xs" onClick={() => navigator.clipboard.writeText(publicLink)}>Copiar</Button>
+                        <a href={publicLink} target="_blank" rel="noopener noreferrer" className="h-6 flex items-center justify-center px-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs">Abrir</a>
                     </div>
 
                     <Button className="w-full" onClick={() => setShowPublishModal(false)}>Concluir</Button>
@@ -796,7 +799,7 @@ const Dashboard: React.FC<DashboardProps> = ({ appState, setAppState, onOpenSett
                     variant={isVisualEditing ? "primary" : "ghost"} 
                     className={`h-8 text-xs px-2 ${!isVisualEditing && 'text-slate-400 hover:text-white'}`}
                     onClick={toggleVisualEdit}
-                    title="Editor Visual de Texto"
+                    title="Editor Visual: Clique duplo em imagens/texto para editar"
                     disabled={!appState.generatedCode}
                 >
                     {isVisualEditing ? <Check className="w-3 h-3 mr-1" /> : <Edit3 className="w-3 h-3 mr-1" />}
@@ -818,7 +821,7 @@ const Dashboard: React.FC<DashboardProps> = ({ appState, setAppState, onOpenSett
                     variant="primary" 
                     className="h-8 text-xs px-3 bg-gradient-to-r from-green-600 to-emerald-600 border-none hover:brightness-110" 
                     onClick={() => setShowPublishModal(true)}
-                    disabled={!appState.generatedCode}
+                    disabled={!appState.generatedCode || !appState.currentProjectId}
                 >
                     <Globe className="w-3 h-3 mr-1" /> Publicar
                 </Button>
