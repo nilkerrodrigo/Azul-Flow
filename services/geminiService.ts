@@ -1,4 +1,4 @@
-import { GoogleGenAI, SchemaType } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import { Attachment, AuditResult } from "../types";
 
 const SYSTEM_INSTRUCTION = `
@@ -74,11 +74,12 @@ export const generateLandingPage = async (
   parts.push({ text: fullPrompt });
 
   try {
-    const model = ai.models.get('gemini-2.0-flash-exp');
-    
-    const response = await model.generateContent({
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.0-flash-exp',
       contents: parts,
-      systemInstruction: SYSTEM_INSTRUCTION
+      config: {
+        systemInstruction: SYSTEM_INSTRUCTION
+      }
     });
     
     let text = response.text || "";
@@ -99,35 +100,52 @@ export const runNeuralAudit = async (apiKey: string, htmlCode: string): Promise<
     
     try {
         const responseSchema = {
-            type: SchemaType.OBJECT,
+            type: Type.OBJECT,
             properties: {
-                seoScore: { type: SchemaType.NUMBER, description: "Nota de 0 a 100 para SEO" },
-                performanceScore: { type: SchemaType.NUMBER, description: "Nota de 0 a 100 para Performance (estrutura, tamanho, scripts)" },
-                accessibilityScore: { type: SchemaType.NUMBER, description: "Nota de 0 a 100 para Acessibilidade (contraste, ARIA, tags semânticas)" },
-                summary: { type: SchemaType.STRING, description: "Um resumo geral curto da qualidade da página" },
+                seoScore: { 
+                    type: Type.NUMBER, 
+                    description: "Nota de 0 a 100 para SEO" 
+                },
+                performanceScore: { 
+                    type: Type.NUMBER, 
+                    description: "Nota de 0 a 100 para Performance (estrutura, tamanho, scripts)" 
+                },
+                accessibilityScore: { 
+                    type: Type.NUMBER, 
+                    description: "Nota de 0 a 100 para Acessibilidade (contraste, ARIA, tags semânticas)" 
+                },
+                summary: { 
+                    type: Type.STRING, 
+                    description: "Um resumo geral curto da qualidade da página" 
+                },
                 suggestions: {
-                    type: SchemaType.ARRAY,
+                    type: Type.ARRAY,
                     items: {
-                        type: SchemaType.OBJECT,
+                        type: Type.OBJECT,
                         properties: {
-                            category: { type: SchemaType.STRING, enum: ["SEO", "Performance", "Acessibilidade", "Design"] },
-                            title: { type: SchemaType.STRING },
-                            description: { type: SchemaType.STRING },
-                            impact: { type: SchemaType.STRING, enum: ["Alto", "Médio", "Baixo"] }
-                        },
-                        required: ["category", "title", "description", "impact"]
+                            category: { 
+                                type: Type.STRING
+                            },
+                            title: { 
+                                type: Type.STRING 
+                            },
+                            description: { 
+                                type: Type.STRING 
+                            },
+                            impact: { 
+                                type: Type.STRING
+                            }
+                        }
                     }
                 }
-            },
-            required: ["seoScore", "performanceScore", "accessibilityScore", "summary", "suggestions"]
+            }
         };
 
-        const model = ai.models.get('gemini-2.0-flash-exp');
-
-        const response = await model.generateContent({
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.0-flash-exp',
             contents: `Analise o seguinte código HTML e gere um relatório de auditoria em formato JSON:\n\n${htmlCode}`,
-            systemInstruction: AUDIT_SYSTEM_INSTRUCTION,
-            generationConfig: {
+            config: {
+                systemInstruction: AUDIT_SYSTEM_INSTRUCTION,
                 responseMimeType: "application/json",
                 responseSchema: responseSchema
             }
